@@ -1,0 +1,95 @@
+# Load required packages
+library(tidyverse)
+library(forecast)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Simulate data for the number of orders delivered by two dark stores daily
+start_date <- as.Date("2021-08-10")
+end_date <- as.Date("2021-11-08")
+num_days <- as.integer(end_date - start_date) + 1
+
+# Simulate data for EW1
+orders_ew1 <- rpois(num_days, lambda = 100)  # Simulating number of orders with a Poisson distribution
+dates <- seq(start_date, end_date, by = "day")
+orders_data_ew1 <- tibble(Date = dates, Orders = orders_ew1, Store = "EW1")
+
+# Simulate data for EW2
+orders_ew2 <- rpois(num_days, lambda = 150)  # Simulating number of orders with a Poisson distribution
+orders_data_ew2 <- tibble(Date = dates, Orders = orders_ew2, Store = "EW2")
+
+# Combine data for both express warehouses
+orders_data <- bind_rows(orders_data_ew1, orders_data_ew2)
+
+# Problem 1: Explore the data and share your findings
+summary(orders_data)
+plot(orders_data$Date, orders_data$Orders, type = 'l', xlab = 'Date', ylab = 'Number of Orders', main = 'Number of Orders Over Time')
+
+# Problem 2: Forecast daily orders for the next week and suggest the number of store operators
+# Convert the 'Date' column to a Date object
+orders_data$Date <- as.Date(orders_data$Date, format = "%Y-%m-%d")
+
+# Create separate time series objects for each express warehouse
+ts_orders_ew1 <- ts(orders_data$Orders[orders_data$Store == "EW1"], frequency = 7)
+ts_orders_ew2 <- ts(orders_data$Orders[orders_data$Store == "EW2"], frequency = 7)
+
+# Forecasting for EW1
+model_ew1 <- auto.arima(ts_orders_ew1)
+forecast_ew1 <- forecast(model_ew1, h = 7)
+
+# Forecasting for EW2
+model_ew2 <- auto.arima(ts_orders_ew2)
+forecast_ew2 <- forecast(model_ew2, h = 7)
+
+# Calculate the number of store operators required
+store_ops_capacity <- 70  # Number of orders a store operator can process in an 8-hour shift
+
+num_store_ops_ew1 <- ceiling(forecast_ew1$mean / store_ops_capacity)
+num_store_ops_ew2 <- ceiling(forecast_ew2$mean / store_ops_capacity)
+
+# Problem 3: Explain the choice of the forecasting model and suggest other metrics/features
+# Explanation of the chosen forecasting model:
+# ARIMA models were chosen as they can capture the temporal patterns in the data and make predictions.
+# Other models like SARIMA or advanced forecasting techniques can also be explored based on the data characteristics.
+
+# Suggestions for other metrics/features:
+# - Historical promotional activities or marketing campaigns
+# - External factors like holidays, events, or weather conditions
+# - Order lead time or arrival patterns
+
+# Problem 4: Measuring forecasting accuracy
+# Assuming you have the actual values for the next week loaded into a vector called 'actual_orders'
+
+# Calculate forecasting accuracy metrics
+actual_orders_ew1 <- orders_data$Orders[orders_data$Store == "EW1"][num_days + 1 : (num_days + 7)]
+actual_orders_ew2 <- orders_data$Orders[orders_data$Store == "EW2"][num_days + 1 : (num_days + 7)]
+
+forecast_accuracy_ew1 <- accuracy(forecast_ew1, actual_orders_ew1)
+forecast_accuracy_ew2 <- accuracy(forecast_ew2, actual_orders_ew2)
+
+# Generate the report
+report <- paste0("Airlift Technologies - Case Study Report\n\n",
+                 "Problem 1: Explore the data and share your findings\n",
+                 "Summary of the number of orders:\n",
+                 summary(orders_data), "\n\n",
+                 "Problem 2: Forecast daily orders for the next week\n",
+                 "Forecasted daily orders for EW1:\n", forecast_ew1$mean, "\n\n",
+                 "Forecasted daily orders for EW2:\n", forecast_ew2$mean, "\n\n",
+                 "Suggested number of store operators:\n",
+                 "EW1: ", num_store_ops_ew1, "\n",
+                 "EW2: ", num_store_ops_ew2, "\n\n",
+                 "Problem 3: Explanation of the forecasting model and suggestions\n",
+                 "The chosen forecasting model: ARIMA\n",
+                 "Other suggested metrics/features:\n",
+                 "- Historical promotional activities or marketing campaigns\n",
+                 "- External factors like holidays, events, or weather conditions\n",
+                 "- Order lead time or arrival patterns\n\n",
+                 "Problem 4: Forecasting accuracy\n",
+                 "Forecast accuracy for EW1:\n", forecast_accuracy_ew1, "\n\n",
+                 "Forecast accuracy for EW2:\n", forecast_accuracy_ew2)
+
+# Save the report to a PDF file
+pdf("airlift_case_study_report.pdf")
+cat(report)
+dev.off()
